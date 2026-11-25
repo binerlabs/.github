@@ -26,7 +26,7 @@ RAW = "https://raw.githubusercontent.com/binerlabs/.github/main/profile/assets"
 
 # slug, name, tagline, website (None until it is ready), card colours, text colour, banner mascot height
 APPS = [
-    ("hypedeck", "HypeDeck", "Charades on your forehead. Guess the card before time runs out.",
+    ("hypedeck", "HypeDeck", "A charades game you hold up to your forehead.",
      "https://hypedeck.binerlabs.com/", ("#FFD447", "#FFAA1D"), "#2E1F00", 218),
     ("raftly", "Raftly", "One question a day for you and your partner.",
      "https://raftly.binerlabs.com/", ("#BC454D", "#85262F"), "#FFFFFF", 212),
