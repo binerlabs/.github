@@ -25,7 +25,7 @@ ART = ROOT / "tools" / "art"
 OUT = ROOT / "profile" / "assets"
 RAW = "https://raw.githubusercontent.com/binerlabs/.github/main/profile/assets"
 
-# Everything on the page comes from the lists below. Run this script after changing them.
+# Everything on the page comes from the lists below. Run this script again after changing them.
 
 # Newest app first: the cards follow this order. With an odd number of apps the newest one gets the wide card.
 APPS = [

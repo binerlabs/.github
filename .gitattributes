@@ -1,1 +1,2 @@
-tools/** linguist-vendored
+# Keep the page generator out of the organization language stats.
+tools/** linguist-vendored linguist-detectable=false
