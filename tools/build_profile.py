@@ -7,6 +7,7 @@ To add an app, put <slug>-mascot.png (transparent) and <slug>-icon.png (square)
 in tools/art/, add a row to APPS, and run this again.
 """
 import base64
+import hashlib
 import html
 import io
 import struct
@@ -24,20 +25,23 @@ ART = ROOT / "tools" / "art"
 OUT = ROOT / "profile" / "assets"
 RAW = "https://raw.githubusercontent.com/binerlabs/.github/main/profile/assets"
 
-# slug, name, tagline, website (None until it is ready), card colours, text colour, banner mascot height
+# Newest app first: the cards follow this order. With an odd number of apps the newest one gets the wide card.
+# slug, name, tagline, website, card colours, text colour, banner mascot height
 APPS = [
+    ("gillow", "Gillow", "A water tracker with Gil, a friendly axolotl.",
+     "https://gillow.binerlabs.com/", ("#11868F", "#0A5566"), "#FFFFFF", 238),
+    ("lightjar", "Lightjar", "Short, kind quotes picked for how you feel.",
+     "https://lightjar.binerlabs.com/", ("#323873", "#12152F"), "#FFFFFF", 226),
+    ("runbloom", "Runbloom", "Every run grows a plant in your own garden.",
+     "https://runbloom.binerlabs.com/", ("#218A4B", "#125634"), "#FFFFFF", 222),
     ("hypedeck", "HypeDeck", "A charades game you hold up to your forehead.",
      "https://hypedeck.binerlabs.com/", ("#FFD447", "#FFAA1D"), "#2E1F00", 218),
     ("raftly", "Raftly", "One question a day for you and your partner.",
      "https://raftly.binerlabs.com/", ("#BC454D", "#85262F"), "#FFFFFF", 212),
-    ("gillow", "Gillow", "A water tracker with Gil, a friendly axolotl.",
-     None, ("#11868F", "#0A5566"), "#FFFFFF", 238),
-    ("runbloom", "Runbloom", "Every run grows a plant in your own garden.",
-     "https://runbloom.binerlabs.com/", ("#218A4B", "#125634"), "#FFFFFF", 222),
-    ("lightjar", "Lightjar", "Short, kind quotes picked for how you feel.",
-     "https://lightjar.binerlabs.com/", ("#323873", "#12152F"), "#FFFFFF", 226),
 ]
-CREDIT = ("credit", "rangga & claude", "We make all of these in Swift and SwiftUI.")
+# Left to right in the banner. Every slug in APPS goes here too.
+BANNER = ["hypedeck", "raftly", "gillow", "runbloom", "lightjar"]
+SIGNATURE = "made by rangga &amp; claude"
 
 
 def num(value):
@@ -107,10 +111,11 @@ def banner(bold, light):
     wordmark = bold.path("BINER", left, 138, size, "#FFFFFF") + light.path(
         "LABS", left + bold.width("BINER", size), 138, size, "#FFFFFF")
 
+    heights = {app[0]: app[-1] for app in APPS}
     sprites = []
-    for slug, *_, tall in APPS:
+    for slug in BANNER:
         uri, w, h = png(f"{slug}-mascot.png")
-        sprites.append((uri, w * tall / h, tall))
+        sprites.append((uri, w * heights[slug] / h, heights[slug]))
     gap = (width - 100 - sum(s[1] for s in sprites)) / (len(sprites) - 1)
     x, shadows, mascots = 50, "", ""
     for index, (uri, w, h) in enumerate(sprites):
@@ -154,50 +159,94 @@ def banner(bold, light):
     return svg(width, height, "Biner Labs", body)
 
 
-def card(bold, medium, slug, name, tagline, link, colours, ink):
-    width, height = 820, 272
-    if slug == "credit":
-        mark = '<rect x="40" y="46" width="180" height="180" rx="42" fill="#4F9AE6" fill-opacity=".28"/>'
-        mark += bold.path("&", 130 - bold.width("&", 118) / 2, 177, 118, "#FFFFFF")
-    else:
-        uri = png(f"{slug}-icon.png")[0]
-        mark = ('<clipPath id="icon"><rect x="40" y="46" width="180" height="180" rx="42"/></clipPath>'
-                f'<image href="{uri}" x="40" y="46" width="180" height="180" clip-path="url(#icon)"/>'
-                f'<rect x="40" y="46" width="180" height="180" rx="42" fill="none" stroke="{ink}" stroke-opacity=".22" stroke-width="3"/>')
-    lines = medium.wrap(tagline, 31, 530)
-    top = (height - (52 + 18 + 43 * len(lines))) / 2
-    text = bold.path(name, 256, top + 46, 50, ink)
-    for index, line in enumerate(lines):
-        text += medium.path(line, 256, top + 104 + 43 * index, 31, ink, 0.92)
-    arrow = (f'<path d="M756 62l24-24m-20 0h20v20" fill="none" stroke="{ink}" stroke-opacity=".75" '
-             'stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>') if link else ""
-    body = (f'<defs><linearGradient id="fill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{colours[0]}"/>'
+def arrow(x, ink):
+    return (f'<path d="M{x} 62l24-24m-20 0h20v20" fill="none" stroke="{ink}" stroke-opacity=".75" '
+            'stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>')
+
+
+def icon(slug, x, y, size, ink):
+    box = f'x="{x}" y="{y}" width="{size}" height="{size}"'
+    radius = round(size * 0.233)
+    return (f'<clipPath id="icon"><rect {box} rx="{radius}"/></clipPath>'
+            f'<image href="{png(f"{slug}-icon.png")[0]}" {box} clip-path="url(#icon)"/>'
+            f'<rect {box} rx="{radius}" fill="none" stroke="{ink}" stroke-opacity=".22" stroke-width="3"/>')
+
+
+def tile(width, height, label, colours, content, style=""):
+    body = (f'{style}<defs><linearGradient id="fill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{colours[0]}"/>'
             f'<stop offset="1" stop-color="{colours[1]}"/></linearGradient>'
             f'<clipPath id="frame"><rect width="{width}" height="{height}" rx="36"/></clipPath></defs>'
             f'<g clip-path="url(#frame)"><rect width="{width}" height="{height}" fill="url(#fill)"/>'
-            '<circle cx="770" cy="300" r="150" fill="#FFF" fill-opacity=".08"/>'
-            '<circle cx="660" cy="330" r="110" fill="#FFF" fill-opacity=".06"/>'
-            f'{mark}{text}{arrow}</g>')
-    return svg(width, height, f"{name}. {tagline}", body, pad_x=8, pad_y=4)
+            f'<circle cx="{width - 50}" cy="{height + 28}" r="150" fill="#FFF" fill-opacity=".08"/>'
+            f'<circle cx="{width - 160}" cy="{height + 58}" r="110" fill="#FFF" fill-opacity=".06"/>'
+            f'{content}</g>')
+    return svg(width, height, label, body, pad_x=8, pad_y=4)
+
+
+def card(bold, medium, slug, name, tagline, colours, ink):
+    height = 272
+    lines = medium.wrap(tagline, 31, 530)
+    top = (height - (70 + 43 * len(lines))) / 2
+    text = bold.path(name, 256, top + 46, 50, ink)
+    for index, line in enumerate(lines):
+        text += medium.path(line, 256, top + 104 + 43 * index, 31, ink, 0.92)
+    return tile(820, height, f"{name}. {tagline}", colours, icon(slug, 40, 46, 180, ink) + text + arrow(756, ink))
+
+
+def wide_card(bold, medium, slug, name, tagline, colours, ink):
+    width, height = 1664, 324
+    mascot, w, h = png(f"{slug}-mascot.png")
+    tall = 270
+    across = w * tall / h
+    left = width - across - 130
+    lines = medium.wrap(tagline, 36, left - 390)
+    top = (height - (150 + 50 * len(lines))) / 2
+    badge = "NEWEST"
+    text = (f'<rect x="326" y="{num(top)}" width="{num(bold.width(badge, 23) + 40)}" height="44" rx="22" '
+            f'fill="{ink}" fill-opacity=".18"/>' + bold.path(badge, 346, top + 30, 23, ink))
+    text += bold.path(name, 326, top + 114, 62, ink)
+    for index, line in enumerate(lines):
+        text += medium.path(line, 326, top + 172 + 50 * index, 36, ink, 0.92)
+    friend = (f'<ellipse cx="{num(left + across / 2)}" cy="{height - 20}" rx="{num(across * 0.32)}" ry="8" fill="#000" fill-opacity=".28"/>'
+              f'<g class="bob"><image href="{mascot}" x="{num(left)}" y="{height - tall - 24}" width="{num(across)}" height="{tall}"/></g>')
+    style = ('<style>.bob{animation:bob 3.2s ease-in-out infinite}'
+             '@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}'
+             '@media (prefers-reduced-motion:reduce){.bob{animation:none}}</style>')
+    content = icon(slug, 46, 46, 232, ink) + text + friend + arrow(width - 64, ink)
+    return tile(width, height, f"{name}. {tagline}", colours, content, style)
+
+
+def publish(name, content):
+    """Writes one asset and returns its URL, versioned so a change shows up despite caching."""
+    (OUT / name).write_text(content)
+    return f"{RAW}/{name}?v={hashlib.sha1(content.encode()).hexdigest()[:8]}"
 
 
 def main():
     font = sys.argv[1]
     bold, light, medium = Face(font, 800), Face(font, 300), Face(font, 600)
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "banner.svg").write_text(banner(bold, light))
+    for old in OUT.glob("*.svg"):
+        old.unlink()
+    top = publish("banner.svg", banner(bold, light))
 
     tiles = []
-    credit = (*CREDIT, None, ("#1D3A60", "#060C18"), "#FFFFFF")
-    for slug, name, tagline, link, colours, ink, *_ in [*APPS, credit]:
-        (OUT / f"card-{slug}.svg").write_text(card(bold, medium, slug, name, tagline, link, colours, ink))
-        image = f'<img src="{RAW}/card-{slug}.svg" width="410" alt="{html.escape(f"{name}. {tagline}")}">'
-        tiles.append(f'<a href="{link}">{image}</a>' if link else image)
+    for position, (slug, name, tagline, link, colours, ink, _) in enumerate(APPS):
+        label = html.escape(f"{name}. {tagline}")
+        small = publish(f"card-{slug}.svg", card(bold, medium, slug, name, tagline, colours, ink))
+        if position == 0 and len(APPS) % 2:
+            wide = publish(f"card-{slug}-wide.svg", wide_card(bold, medium, slug, name, tagline, colours, ink))
+            image = (f'<picture><source media="(max-width: 700px)" srcset="{small}">'
+                     f'<img src="{wide}" width="824" alt="{label}"></picture>')
+        else:
+            image = f'<img src="{small}" width="410" alt="{label}">'
+        tiles.append(f'<a href="{link}">{image}</a>')
 
     names = ", ".join(a[1] for a in APPS[:-1]) + f" and {APPS[-1][1]}"
-    readme = (f'<p align="center">\n  <img src="{RAW}/banner.svg" width="100%" '
+    readme = (f'<p align="center">\n  <img src="{top}" width="100%" '
               f'alt="Biner Labs, with the mascots of {names}">\n</p>\n\n'
-              '<p align="center">\n  ' + "\n  ".join(tiles) + "\n</p>\n")
+              '<p align="center">\n  ' + "\n  ".join(tiles) + "\n</p>\n\n"
+              f'<p align="center"><sub>{SIGNATURE}</sub></p>\n')
     (ROOT / "profile" / "README.md").write_text(readme)
 
 
